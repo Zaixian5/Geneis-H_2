@@ -36,8 +36,8 @@ char board[FIELD_HEIGHT][FIELD_WIDTH + 1] = {
 	"########################################"
 };
 RAND_WALL rd_wall = { { 0 }, { 0 } }; // 랜덤 벽의 좌표를 저장
-PLAYER_INFO player = { UP_CORNER, LEFT_CORNER, { 0 }, { 0 } }; // 플레이어 좌표와 스킬 좌표를 저장
-ENEMY_INFO enemy = { { 0 }, { 0 }, 0, 0 }; // 적 좌표와 리젠 좌표를 저장
+PLAYER_INFO player = { UP_CORNER, LEFT_CORNER, { 0 }, { 0 }, { 0 } }; // 플레이어 좌표와 스킬, 폭탄 좌표를 저장
+ENEMY_INFO enemy = { { 0 }, { 0 }, 0, 0, 0 }; // 적 좌표, 리젠 좌표, 처치된 적의 수를 저장
 int stage_num = 1; // 스테이지 번호를 저장
 int save_score = 1; // 점수를 저장
 
@@ -52,7 +52,7 @@ int get_key(void) // 키 입력을 처리하는 함수
 	{
 		if (_kbhit())
 		{
-			return _getch(); // 키 입력이 없을 경우 입력 값을 반환
+			return _getch(); // 키 입력이 있을 경우 입력 값을 반환
 		}
 		else
 		{
@@ -64,7 +64,7 @@ void print_map(void)
 {
 	int i;
 
-	for (i = 0; i < FIELD_HEIGHT; i++) // 맵의 바깥쪽 벽과 초기 플레이어, 적의 위치를 출력
+	for (i = 0; i < FIELD_HEIGHT; i++) // 맵의 바깥쪽 벽과 초기 플레이어, 초기 적의 위치를 출력
 	{
 		printf("%s\n", board[i]);
 	}
@@ -81,7 +81,7 @@ void print_map(void)
 			i--; // continue를 해도 벽의 개수는 유지되어야 하므로 i를 1 감소
 			continue;
 		}
-		if ((rd_wall.row[i] == DOWN_CORNER) && (rd_wall.column[i] == RIGHT_CORNER)) // 우상단 좌표에는 벽을 생성하지 못하게 함
+		if ((rd_wall.row[i] == DOWN_CORNER) && (rd_wall.column[i] == RIGHT_CORNER)) // 우하단 좌표에는 벽을 생성하지 못하게 함
 		{
 			i--; // continue를 해도 벽의 개수는 유지되어야 하므로 i를 1 감소
 			continue;
@@ -94,10 +94,11 @@ void print_map(void)
 		printf("%c", MAP_WALL);
 	}
 
+	// 게임 정보 출력
 	gotoxy(0, 42);
 	printf("<게임방법>");
 
-	gotoxy(2, 42);
+	gotoxy(2, 43);
 	printf("@: 플레이어 $: 적");
 
 	gotoxy(4, 42);
@@ -112,19 +113,25 @@ void print_map(void)
 	gotoxy(9, 42);
 	printf(" - 플레이어는 z, x키로 스킬을 사용할 수 있습니다.");
 
-	gotoxy(11, 42);
+	gotoxy(10, 42);
+	printf("   -> z: 수평 스킬, x: 수직 스킬");
+
+	gotoxy(12, 42);
 	printf(" - 점수가 10씩 오를 때 마다 스테이지가 올라갑니다.");
 
-	gotoxy(13, 42);
+	gotoxy(14, 42);
 	printf(" - 스테이지가 오를 수록 적의 수가 많아지며 최대 스테이지는 20입니다.");
 
-	gotoxy(15, 42);
-	printf(" - 20 스테이지는 보스 스테이지입니다.");
+	gotoxy(16, 42);
+	printf(" - 점수가 10의 배수가 될 때 마다 폭탄이 터집니다.");
 
 	gotoxy(17, 42);
-	printf("z: 수평 스킬, x: 수직 스킬");
+	printf("   -> 폭탄: 맵에 존재하는 모든 적을 처치한다.");
 
 	gotoxy(19, 42);
+	printf(" - 경과 시간이 10초가 될 때 마다 서비스 점수 10점이 부여됩니다.");
+
+	gotoxy(21, 43);
 	printf("q: 게임종료");
 
 	gotoxy(21, 0);
@@ -132,6 +139,9 @@ void print_map(void)
 
 	gotoxy(21, 12);
 	printf("스테이지: %d", stage_num); // 초기 스테이지 출력
+
+	gotoxy(21, 28);
+	printf("시간(초): ");
 }
 void intro(void)
 {
@@ -146,28 +156,52 @@ void intro(void)
 		}
 	}
 }
-void outro(void)
+void outro(int tick)
 {
 	system("cls");
+	printf("<STATISTICS>\n");
+	printf("점수: %d\n", save_score);
+	printf("처치한 적: %d\n", enemy.captured);
+	printf("최종 스테이지 : %d\n", stage_num);
+	printf("게임 시간(초) : %d\n\n", tick / 100);
 	printf("Bye!\n");
+}
+void initialize(void) 
+{
+	int enemy_num;
+	int bomb_row, bomb_column;
+	int i;
+
+	// 적 좌표를 모두 시작 위치로 초기화
+	for (enemy_num = 1; enemy_num < STAGE + 1; enemy_num++)
+	{
+		enemy.row[enemy_num] = DOWN_CORNER;
+		enemy.column[enemy_num] = RIGHT_CORNER;
+	}
+
+	// 폭탄 효과 좌표를 랜덤 벽을 피해서 초기화
+	for (bomb_row = UP_CORNER; bomb_row <= DOWN_CORNER; bomb_row++)
+	{
+		for (bomb_column = LEFT_CORNER; bomb_column <= RIGHT_CORNER; bomb_column++)
+		{
+			player.bomb_effect[bomb_row][bomb_column] = TRUE; // 먼저, 배열 전체를 TRUE로 초기화 한다.
+		}
+	}
+	for (i = 0; i < RAND_WALL_CNT; i++)
+	{
+		player.bomb_effect[rd_wall.row[i]][rd_wall.column[i]] = FALSE; // 다음으로, 좌표가 랜덤 벽과 일치 하는 경우 FALSE를 저장한다.
+	}
 }
 void stage(void) // 스테이지 정보 함수
 {	
 	if (save_score % 10 == 0) // 점수가 10씩 증가할 떄 마다 스테이지가 올라감
 	{
-		if (stage_num < STAGE - 1) // 스테이지를 19 까지 증가 시킴
+		if (stage_num < STAGE) 
 		{
 			stage_num++;
 
 			gotoxy(21, 22);
 			printf("%d", stage_num);
-		}
-		else if (stage_num == STAGE - 1) // stage() 함수 호출시, 현재 스테이지가 19일 경우 스테이지를 증가시키고 보스 스테이지 실행
-		{
-			stage_num++;
-
-			gotoxy(21, 22);
-			printf("%d(보스 스테이지)", stage_num);
 		}
 	}
 }
@@ -240,16 +274,6 @@ void turn_player(void) // 키 입력이 있을 시 플레이어의 좌표를 변경하는 함수.
 			}
 		}
 		break;
-	}
-}
-void enemy_initialize(void) // 적의 좌표를 저장하는 배열을 모두 적의 시작 좌표로 초기화
-{
-	int enemy_num;
-
-	for (enemy_num = 1; enemy_num < STAGE + 1; enemy_num++)
-	{
-		enemy.row[enemy_num] = DOWN_CORNER;
-		enemy.column[enemy_num] = RIGHT_CORNER;
 	}
 }
 void turn_enemy(void) // 적의 위치가 랜덤으로 상하좌우 중 한 방향으로 한칸 움직이도록 함
@@ -336,7 +360,8 @@ void crash_effect(int enemy_num)
 	int i;
 	int duplicated = 0;
 
-	save_score++; // 충돌 이펙트 발생시 점수를 1 늘리고 출력
+	enemy.captured++; // 처치된 적의 수 1 증가
+	save_score++; // 점수를 1 늘리고 출력
 
 	gotoxy(21, 6);
 	printf("%d", save_score);
@@ -471,6 +496,95 @@ void skill_effect(int skill_key)
 			}
 		}
 		break;
+	}
+}
+void bomb_effect(void)
+{
+	int bomb_row, bomb_column; 
+	int enemy_num;
+	int i;
+	
+	if (save_score % 10 == 0) // 점수가 10의 배수가 될 때 마다 폭탄 작동
+	{
+		gotoxy(23, 0);
+		printf("폭탄!"); // 메세지 출력
+
+		for (bomb_row = UP_CORNER; bomb_row <= DOWN_CORNER; bomb_row++)
+		{
+			for (bomb_column = LEFT_CORNER; bomb_column <= RIGHT_CORNER; bomb_column++)
+			{
+				if (player.bomb_effect[bomb_row][bomb_column]) // TRUE일 경우 좌표로 이동해 폭탄 출력
+				{
+					gotoxy(bomb_row, bomb_column);
+					printf("%c", MAP_BOMB); 
+
+					for (enemy_num = 1; enemy_num <= stage_num; enemy_num++)
+					{
+						if ((enemy.row[enemy_num] == bomb_row) && (enemy.column[enemy_num] == bomb_column))
+						{
+							crash_effect(enemy_num); // 적이 폭탄에 맞는다면 충돌 이펙트 함수 호출
+						}
+					}
+				}
+			}
+		}
+		Sleep(500); // 게임을 0.5초간 일시정지 후 폭탄과 메세지를 지운다
+
+		gotoxy(23, 0);
+		for (i = 0; i < 5; i++)
+		{
+			printf("%c", MAP_EMPTY); // 메세지 지우기
+		}
+
+		for (bomb_row = UP_CORNER; bomb_row <= DOWN_CORNER; bomb_row++)
+		{
+			for (bomb_column = LEFT_CORNER; bomb_column <= RIGHT_CORNER; bomb_column++)
+			{
+				if (player.bomb_effect[bomb_row][bomb_column])
+				{
+					gotoxy(bomb_row, bomb_column);
+					printf("%c", MAP_EMPTY); // 폭탄 지우기
+				}
+			}
+		}
+	}
+}
+void score_service(int tick)
+{
+	static int tick_last = 0; // 지속시간을 계산하여 일정 시간 후 메세지를 지우기 위한 용도
+	int i;
+	
+	if (tick % 1000 == 0) // 10초가 경과할 때 마다 점수 서비스 발생
+	{
+		tick_last = tick; // 점수 서비스가 발생 했을 때의 시간 저장
+
+		for (i = 0; i < 10; i++) // 점수를 한번에 증가 시키면 점수가 10n을 초과 했을 때 스테이지가 오르지 않으므로 1씩 증가 시킨다.
+		{
+			save_score++;
+			stage();
+		}
+
+		gotoxy(21, 6);
+		printf("%d", save_score); // 점수 출력
+
+		gotoxy(24, 0);
+		printf("점수 서비스!"); // 메세지 출력
+	}
+	if (tick == tick_last + 100) // 메세지 출력 후 1초가 지나면 메세지를 지운다 
+	{
+		gotoxy(24, 0);
+		for (i = 0; i < 12; i++)
+		{
+			printf("%c", MAP_EMPTY);
+		}
+	}
+}
+void print_time(int tick)
+{
+	if (tick % 100 == 0) // 시간은 초 단위로 출력
+	{
+		gotoxy(21, 38);
+		printf("%d", tick / 100);
 	}
 }
 void player_display(void)

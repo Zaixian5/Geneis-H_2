@@ -15,12 +15,14 @@
 #define UP_CORNER 1 // 맵의 위쪽 끝
 #define DOWN_CORNER (FIELD_HEIGHT - 2) // 맵의 아래쪽 끝
 
-#define RAND_WALL_CNT (int)(DOWN_CORNER * RIGHT_CORNER * 0.1) // 랜덤 벽의 개수(벽의 개수는 정수이어야 하므로 int형 변환)
+#define RAND_WALL_CNT (int)(DOWN_CORNER * RIGHT_CORNER * 0.1) // 랜덤 벽의 개수(빈 공간의 10%)(벽의 개수는 정수이어야 하므로 int형 변환)
 
 #define MAP_WALL '#' // 벽
 #define MAP_PLAYER '@' // 플레이어 캐릭터
 #define MAP_ENEMY '$' // 적 캐릭터
 #define MAP_EMPTY ' ' // 맵의 공백
+
+#define MAP_BOMB '*' // 폭탄 
 
 #define DIR_LEFT -1 // 캐릭터가 왼쪽으로 이동할 때 좌표변경시 이용
 #define DIR_RIGHT 1 // 캐릭터가 오른쪽으로 이동할 때 좌표변경시 이용
@@ -54,10 +56,11 @@ typedef struct
 	int column; // 플레이어의 가로 좌표
 	bool horizontal_skill_column[RIGHT_CORNER + 1]; // 수평 스킬(z)의 세로 좌표를 저장
 	bool vertical_skill_row[DOWN_CORNER + 1]; // 수직 스킬(x)의 가로 좌표를 저장
+	bool bomb_effect[RIGHT_CORNER + 1][DOWN_CORNER + 1]; // 폭탄 효과의 좌표를 저장
 	/*
-		스킬은 랜덤 벽을 피해서 발사되어야 함
+		스킬과 폭탄은 랜덤 벽을 피해서 발사되어야 함
 		좌표가 랜덤 벽과 일치할 경우 FALSE, 일치하지 않을 경우 TRUE를 저장함
-		인덱스에는 좌표를 저장하여 배열 값이 TRUE일 경우 인덱스 값으로 이동하여 스킬을 출력하는 알고리즘
+		인덱스에는 좌표를 저장하여 배열 값이 TRUE일 경우 인덱스 값으로 이동하여 스킬 혹은 폭탄을 출력하는 알고리즘
 	*/
 } PLAYER_INFO; // 플레이어 정보 구조체
 
@@ -71,6 +74,7 @@ typedef struct
 	*/
 	int regen_row; // 적의 세로 리젠 좌표
 	int regen_column; // 적의 가로 리젠 좌표
+	int captured; // 처치된 적의 수 저장
 } ENEMY_INFO; // 적 정보 구조체
 
 #endif
