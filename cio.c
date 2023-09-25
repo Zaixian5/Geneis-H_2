@@ -165,6 +165,15 @@ void outro(int tick)
 	printf("최종 스테이지 : %d\n", stage_num);
 	printf("게임 시간(초) : %d\n\n", tick / 100);
 	printf("Bye!\n");
+	printf("게임을 나가려면 아무키나 누르세요...\n");
+
+	while (true)
+	{
+		if (_kbhit())
+		{
+			break;
+		}
+	}
 }
 void initialize(void) 
 {
